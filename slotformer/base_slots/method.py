@@ -137,13 +137,17 @@ class SAViMethod(SlotBaseMethod):
         dst = self.val_loader.dataset
         sampled_idx = self._get_sample_idx(self.params.n_samples, dst)
         results, labels = [], []
+        print('SAMPLED IDX ', sampled_idx)
+        
         for i in sampled_idx:
+            print('I ',i)
             data_dict = dst.get_video(i.item())
             video, label = data_dict['video'].float().to(self.device), \
                 data_dict.get('label', None)  # label for PHYRE
             in_dict = {'img': video[None]}
             out_dict = model(in_dict)
             out_dict = {k: v[0] for k, v in out_dict.items()}
+            #TODO: TO RGB
             recon_combined, recons, masks = out_dict['post_recon_combined'], \
                 out_dict['post_recons'], out_dict['post_masks']
             imgs = video.type_as(recon_combined)
@@ -185,7 +189,9 @@ class dVAEMethod(SlotBaseMethod):
         dst = self.val_loader.dataset
         sampled_idx = self._get_sample_idx(self.params.n_samples, dst)
         results = []
+        print('SAMPLED IDX ', sampled_idx)
         for i in sampled_idx:
+            print('I ',i)
             video = dst.get_video(i.item())['video'].float().to(self.device)
             all_recons, bs = [], 100  # a hack to avoid OOM
             for batch_idx in range(0, video.shape[0], bs):

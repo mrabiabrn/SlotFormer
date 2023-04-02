@@ -223,7 +223,7 @@ class StoSAVi(BaseModel):
         self.enc_channels = list(self.enc_dict['enc_channels'])  # CNN channels
         self.enc_ks = self.enc_dict['enc_ks']  # kernel size in CNN
         self.enc_norm = self.enc_dict['enc_norm']  # norm in CNN
-        self.visual_resolution = (64, 64)  # CNN out visual resolution
+        self.visual_resolution = (192,192) #(64, 64)  # CNN out visual resolution
         self.visual_channels = self.enc_channels[-1]  # CNN out visual channels
 
         enc_layers = len(self.enc_channels) - 1
@@ -286,8 +286,8 @@ class StoSAVi(BaseModel):
         # out Conv for RGB and seg mask
         modules.append(
             nn.Conv2d(
-                self.dec_channels[-1], 4, kernel_size=1, stride=1, padding=0))
-
+                self.dec_channels[-1], 9, kernel_size=1, stride=1, padding=0))
+        # TODO : 4 to 9
         self.decoder = nn.Sequential(*modules)
         self.decoder_pos_embedding = SoftPositionEmbed(self.slot_size,
                                                        self.dec_resolution)
@@ -474,6 +474,8 @@ class StoSAVi(BaseModel):
         if prev_slots is None:
             self._reset_rnn()
 
+        #print('IN FORWARD ', img.shape)
+
         B, T = img.shape[:2]
         kernel_dist, post_slots, encoder_out = \
             self.encode(img, prev_slots=prev_slots)
@@ -486,6 +488,10 @@ class StoSAVi(BaseModel):
         }
         if self.testing:
             return out_dict
+
+        # print('kernel dist ', kernel_dist.shape)
+        # print('post_slots ', post_slots.shape)
+        # print('img ', img.shape)
 
         if self.use_post_recon_loss:
             post_recon_img, post_recons, post_masks, _ = \
@@ -506,15 +512,19 @@ class StoSAVi(BaseModel):
         # `slots` has shape: [B, self.num_slots, self.slot_size].
         bs, num_slots, slot_size = slots.shape
         height, width = self.resolution
-        num_channels = 3
+        num_channels = 8 #3
+
+        #print('SLOTS ', slots.shape)
 
         # spatial broadcast
         decoder_in = slots.view(bs * num_slots, slot_size, 1, 1)
+        #print('DECODER IN ', decoder_in.shape)
         decoder_in = decoder_in.repeat(1, 1, self.dec_resolution[0],
                                        self.dec_resolution[1])
 
         out = self.decoder_pos_embedding(decoder_in)
         out = self.decoder(out)
+        #print('OUT ', out.shape)
         # `out` has shape: [B*num_slots, 4, H, W].
 
         out = out.view(bs, num_slots, num_channels + 1, height, width)
@@ -535,6 +545,7 @@ class StoSAVi(BaseModel):
             post_recon_combined = out_dict['post_recon_combined']
             img = out_dict['img']
             loss_dict['post_recon_loss'] = F.mse_loss(post_recon_combined, img)
+            # TODO? They use MSE.
         return loss_dict
 
     @property
