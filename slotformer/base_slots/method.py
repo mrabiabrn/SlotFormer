@@ -228,6 +228,8 @@ class dVAEMethod(SlotBaseMethod):
 
     def _log_train(self, out_dict):
         """Log statistics in training to wandb."""
+        #print('OUT DICT ', out_dict.keys())
+  
         super()._log_train(out_dict)
 
         if self.local_rank != 0 or (self.epoch_it + 1) % self.print_iter != 0:

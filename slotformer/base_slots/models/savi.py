@@ -286,7 +286,7 @@ class StoSAVi(BaseModel):
         # out Conv for RGB and seg mask
         modules.append(
             nn.Conv2d(
-                self.dec_channels[-1], 9, kernel_size=1, stride=1, padding=0))
+               self.dec_channels[-1], 2, kernel_size=1, stride=1, padding=0))  #self.dec_channels[-1], 9, kernel_size=1, stride=1, padding=0))
         # TODO : 4 to 9
         self.decoder = nn.Sequential(*modules)
         self.decoder_pos_embedding = SoftPositionEmbed(self.slot_size,
@@ -512,10 +512,9 @@ class StoSAVi(BaseModel):
         # `slots` has shape: [B, self.num_slots, self.slot_size].
         bs, num_slots, slot_size = slots.shape
         height, width = self.resolution
-        num_channels = 8 #3
+        num_channels = 1 # 8 #3
 
         #print('SLOTS ', slots.shape)
-
         # spatial broadcast
         decoder_in = slots.view(bs * num_slots, slot_size, 1, 1)
         #print('DECODER IN ', decoder_in.shape)
@@ -544,8 +543,25 @@ class StoSAVi(BaseModel):
         if self.use_post_recon_loss:
             post_recon_combined = out_dict['post_recon_combined']
             img = out_dict['img']
+
+            #print('post recon ', post_recon_combined.shape)
+            #print('img ', img.shape)
+            #exit()
+            # bce_loss = torch.nn.BCEWithLogitsLoss(pos_weight=torch.Tensor([ 0,
+            #                                                                 0,
+            #                                                                 1,   # vehicles
+            #                                                                 0,
+            #                                                                 0,
+            #                                                                 0,
+            #                                                                 0,
+            #                                                                 1,   # pedestrians
+            #                                                                  ])[:,None,None].cuda())
+
             loss_dict['post_recon_loss'] = F.mse_loss(post_recon_combined, img)
             # TODO? They use MSE.
+            
+            #loss_dict['post_recon_loss'] = bce_loss(post_recon_combined, img)
+
         return loss_dict
 
     @property

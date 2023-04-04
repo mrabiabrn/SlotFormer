@@ -53,9 +53,9 @@ class BEVDataset(Dataset):
         self.main_folders = sorted(os.listdir(self.data_path))
 
         if split=="train":
-            self.main_folders = self.main_folders[:-9]  #-10] # TODO: is it for rgb [2:-2]
+            self.main_folders = self.main_folders[:-3]  #-10] # TODO: is it for rgb [2:-2]
         elif split=="val":
-            self.main_folders = self.main_folders[-9:] #[-9:]  #[self.main_folders[-2]]
+            self.main_folders = self.main_folders[-3:] #[-9:]  #[self.main_folders[-2]]
         elif split=="test":
             self.main_folders = self.main_folders #[self.main_folders[0]] 
             self.npz_file_name = 'arr_0'
@@ -134,9 +134,10 @@ class BEVDataset(Dataset):
             #print('BEVVV ', bev.shape)
             bev[bev>0]=1
             #print('BEVVV ', bev.shape)
-            bev = convert_to_one_hot(bev.unsqueeze(0))
+            bev = bev[2,:,:].unsqueeze(0)
+            #bev = convert_to_one_hot(bev.unsqueeze(0))
             #print('bev ', bev.shape)
-            frames.append(bev[0]) #to_rgb(bev[0]))
+            frames.append(bev) #[0]) #to_rgb(bev[0]))
        
         # frames = [
         #     Image.open(filename.format(1 +
@@ -197,7 +198,9 @@ class BEVDataset(Dataset):
         except:
             raise
 
-        bevs = convert_to_one_hot(bevs)
+        bevs = bevs[:,2,:,:].unsqueeze(1) #convert_to_one_hot(bevs)   # TAKE the vehicle channel
+
+        #print('BEV ', bevs.shape)
         #bevs_out = convert_to_one_hot(bevs_out)
         data_dict = {}
         data_dict['data_idx'] = idx

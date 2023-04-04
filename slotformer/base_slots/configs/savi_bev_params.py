@@ -41,7 +41,7 @@ class SlotFormerParams(BaseParams):
     
     # Slot Attention
     slot_dict = dict(
-        num_slots=12
+        num_slots=7
         ,  # at most 5 objects per scene
         slot_size=128,
         slot_mlp_size=256,
@@ -50,7 +50,7 @@ class SlotFormerParams(BaseParams):
 
     # CNN Encoder
     enc_dict = dict(
-        enc_channels= (8,64,64,128,128), #(8, 64, 64, 64, 64),
+        enc_channels= (1, 64, 64, 64, 64), #(8, 64, 64, 64, 64), #(8,64,64,128,128), #,
         enc_ks=5,
         enc_out_channels=256, #128,
         enc_norm='',
@@ -58,8 +58,8 @@ class SlotFormerParams(BaseParams):
 
     # CNN Decoder
     dec_dict = dict(
-        dec_channels= (128,128,128,64,64), #(128, 64, 64, 64, 64),
-        dec_resolution= (24,24), #(8, 8),
+        dec_channels= (128, 64, 64, 64, 64), #(128,128,128,64,64), #,
+        dec_resolution= (24,24), #(24,24), #(8, 8),
         dec_ks=5,
         dec_norm='',
     )
