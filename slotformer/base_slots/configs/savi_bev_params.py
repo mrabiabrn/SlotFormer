@@ -4,23 +4,26 @@ from nerv.training import BaseParams
 class SlotFormerParams(BaseParams):
     project = 'SlotFormer'
 
+    wandb_run_name = '1ch-mse-fp16-lr:1e-5'
     # training settings
     gpus = 2 #1 #2  # 2 GPUs should also be good
     max_epochs = 40  # ~80k steps
     save_interval = 1 #0.2  # save every 0.2 epoch
     eval_interval = 1  # evaluate every 2 epochs
     save_epoch_end = True  # save ckp at the end of every epoch
-    n_samples = 10  # visualization after each epoch
+    n_samples = 7  # visualization after each epoch
 
     # optimizer settings
     # Adam optimizer, Cosine decay with Warmup
     optimizer = 'Adam'
-    lr = 1e-4  # a small learning rate is very important for SAVi training
+    lr = 1e-5  # a small learning rate is very important for SAVi training
     clip_grad = 0.05  # following the paper
     warmup_steps_pct = 0.025  # warmup in the first 2.5% of total steps
-
+     
+     
     # data settings
     dataset = 'bev' #'obj3d'
+    ckpt_path = '/home/mbarin/storage/slotformer/savi/'
     data_root = '/home/mbarin/Desktop/binary-vae/binary-data/' #'./data/OBJ3D'
     n_sample_frames = 6  # train on video clips of 6 frames
     frame_offset = 1  # no offset
@@ -33,6 +36,7 @@ class SlotFormerParams(BaseParams):
     skip_frame = 1  # num skip frame between past and future
     stride = 10 # pass this time of steps when collecting data
 
+    reverse_color = True  # reverse color when using mask scaler. background is black (0).
 
     # model configs
     model = 'StoSAVi'  # we actually use the deterministic version here

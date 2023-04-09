@@ -12,6 +12,8 @@ from .utils import assert_shape, SoftPositionEmbed, torch_cat
 from .predictor import ResidualMLPPredictor, TransformerPredictor, \
     RNNPredictorWrapper
 
+from ..datasets.bev_utils import to_rgb
+
 
 class SlotAttention(nn.Module):
     """Slot attention module that iteratively performs cross-attention."""
@@ -53,6 +55,9 @@ class SlotAttention(nn.Module):
             nn.Linear(self.mlp_hidden_size, self.slot_size),
         )
 
+        #print('INITIALIZED THE SLOT ATT MODULE')
+
+
     def forward(self, inputs, slots):
         """Forward function.
 
@@ -62,10 +67,12 @@ class SlotAttention(nn.Module):
         """
         # `inputs` has shape [B, num_inputs, inputs_size].
         # `num_inputs` is actually the spatial dim of feature map (H*W)
+
+        #print('### YOU ARE IN THE SLOT ATTENTION ###')
         bs, num_inputs, inputs_size = inputs.shape
         inputs = self.norm_inputs(inputs)  # Apply layer norm to the input.
         # Shape: [B, num_inputs, slot_size].
-        k = self.project_k(inputs)
+        k = self.project_k(inputs)              
         # Shape: [B, num_inputs, slot_size].
         v = self.project_v(inputs)
 
@@ -81,8 +88,8 @@ class SlotAttention(nn.Module):
 
             attn_logits = self.attn_scale * torch.einsum('bnc,bmc->bnm', k, q)
             attn = F.softmax(attn_logits, dim=-1)
-            # `attn` has shape: [B, num_inputs, num_slots].
 
+            # `attn` has shape: [B, num_inputs, num_slots].
             # Normalize along spatial dim and do weighted mean.
             attn = attn + self.eps
             attn = attn / torch.sum(attn, dim=1, keepdim=True)
@@ -185,7 +192,7 @@ class StoSAVi(BaseModel):
 
         # directly use learnable embeddings for each slot
         self.init_latents = nn.Parameter(
-            nn.init.normal_(torch.empty(1, self.num_slots, self.slot_size)))
+            nn.init.normal_(torch.empty(1, self.num_slots, self.slot_size)))    # NOTE: slots are initialized with normal distribution
 
         # predict the (\mu, \sigma) to sample the `kernels` input to SA
         if self.slot_dict.get('kernel_mlp', True):
@@ -223,7 +230,7 @@ class StoSAVi(BaseModel):
         self.enc_channels = list(self.enc_dict['enc_channels'])  # CNN channels
         self.enc_ks = self.enc_dict['enc_ks']  # kernel size in CNN
         self.enc_norm = self.enc_dict['enc_norm']  # norm in CNN
-        self.visual_resolution = (192,192) #(64, 64)  # CNN out visual resolution
+        self.visual_resolution = (192,192) # #(64, 64)  # CNN out visual resolution
         self.visual_channels = self.enc_channels[-1]  # CNN out visual channels
 
         enc_layers = len(self.enc_channels) - 1
@@ -233,7 +240,7 @@ class StoSAVi(BaseModel):
                 self.enc_channels[i + 1],
                 kernel_size=self.enc_ks,
                 # 2x downsampling for 128x128 image
-                stride=2 if (i == 0 and self.resolution[0] == 128) else 1,
+                stride=2 if (i == 0 and self.resolution[0] == 190) else 1, #192) else 1,    # changed 128 -> 192
                 norm=self.enc_norm,
                 act='relu' if i != (enc_layers - 1) else '')
             for i in range(enc_layers)
@@ -286,8 +293,7 @@ class StoSAVi(BaseModel):
         # out Conv for RGB and seg mask
         modules.append(
             nn.Conv2d(
-               self.dec_channels[-1], 2, kernel_size=1, stride=1, padding=0))  #self.dec_channels[-1], 9, kernel_size=1, stride=1, padding=0))
-        # TODO : 4 to 9
+               self.dec_channels[-1], self.enc_channels[0]+1, kernel_size=1, stride=1, padding=0)) 
         self.decoder = nn.Sequential(*modules)
         self.decoder_pos_embedding = SoftPositionEmbed(self.slot_size,
                                                        self.dec_resolution)
@@ -296,6 +302,10 @@ class StoSAVi(BaseModel):
         """Predictor as in SAVi to transition slot from time t to t+1."""
         # Build Predictor
         pred_type = self.pred_dict.get('pred_type', 'transformer')
+        
+        #print('### BUILD SLOT PREDICTOR ###')
+        #print('pred type : ', pred_type)
+
         # Transformer (object interaction) --> LSTM (scene dynamic)
         if pred_type == 'mlp':
             self.predictor = ResidualMLPPredictor(
@@ -310,6 +320,7 @@ class StoSAVi(BaseModel):
                 self.pred_dict['pred_ffn_dim'],
                 norm_first=self.pred_dict['pred_norm_first'],
             )
+        
         # wrap LSTM
         if self.pred_dict['pred_rnn']:
             self.predictor = RNNPredictorWrapper(
@@ -317,7 +328,7 @@ class StoSAVi(BaseModel):
                 self.slot_size,
                 self.slot_mlp_size,
                 num_layers=1,
-                rnn_cell='LSTM',
+                rnn_cell='LSTM',                                # NOTE: they are using lstm. change it to gru maybe?.
                 sg_every=self.pred_dict['pred_sg_every'],
             )
 
@@ -366,14 +377,16 @@ class StoSAVi(BaseModel):
 
     def _get_encoder_out(self, img):
         """Encode image, potentially add pos enc, apply MLP."""
+
         encoder_out = self.encoder(img).type(self.dtype)
-        encoder_out = self.encoder_pos_embedding(encoder_out)
+        encoder_out = self.encoder_pos_embedding(encoder_out)    # TODO: POSITIONAL EMBEDDINGS ?
         # `encoder_out` has shape: [B, C, H, W]
         encoder_out = torch.flatten(encoder_out, start_dim=2, end_dim=3)
         # `encoder_out` has shape: [B, C, H*W]
         encoder_out = encoder_out.permute(0, 2, 1).contiguous()
         encoder_out = self.encoder_out_layer(encoder_out)
         # `encoder_out` has shape: [B, H*W, enc_out_channels]
+
         return encoder_out
 
     def encode(self, img, prev_slots=None):
@@ -387,7 +400,7 @@ class StoSAVi(BaseModel):
 
         # init slots
         init_latents = self.init_latents.repeat(B, 1, 1)  # [B, N, C]
-
+        
         # apply SlotAttn on video frames via reusing slots
         all_kernel_dist, all_post_slots = [], []
         for idx in range(T):
@@ -395,11 +408,11 @@ class StoSAVi(BaseModel):
             if prev_slots is None:
                 latents = init_latents  # [B, N, C]
             else:
-                latents = self.predictor(prev_slots)  # [B, N, C]
+                latents = self.predictor(prev_slots)  # [B, N, C]    # NOTE: rnn-based slot predictor.
 
             # stochastic `kernels` as SA input
             kernel_dist = self.kernel_dist_layer(latents)
-            kernels = self._sample_dist(kernel_dist)
+            kernels = self._sample_dist(kernel_dist)        # if not stochastic just returns the mu value
             all_kernel_dist.append(kernel_dist)
 
             # perform SA to get `post_slots`
@@ -512,7 +525,7 @@ class StoSAVi(BaseModel):
         # `slots` has shape: [B, self.num_slots, self.slot_size].
         bs, num_slots, slot_size = slots.shape
         height, width = self.resolution
-        num_channels = 1 # 8 #3
+        num_channels = self.enc_channels[0] # 8 #3
 
         #print('SLOTS ', slots.shape)
         # spatial broadcast
@@ -528,9 +541,16 @@ class StoSAVi(BaseModel):
 
         out = out.view(bs, num_slots, num_channels + 1, height, width)
         recons = out[:, :, :num_channels, :, :]  # [B, num_slots, 3, H, W]
+
+        # NOTE: for each pixel, we decide on slots that has to gather their assigned energy to predict that little one pixel 
         masks = out[:, :, -1:, :, :]
         masks = F.softmax(masks, dim=1)  # [B, num_slots, 1, H, W]
+
+        # for each pixel you have num_slots probabilities. how do you measure if they diverge?
+
+        # TODO: recons valus are very close I assume. we may want to sigmoid on it.
         recon_combined = torch.sum(recons * masks, dim=1)  # [B, 3, H, W]
+
         return recon_combined, recons, masks, slots
 
     def calc_train_loss(self, data_dict, out_dict):

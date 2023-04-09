@@ -7,13 +7,14 @@ import importlib
 import argparse
 import wandb
 
+
 import torch
 
 from nerv.utils import mkdir_or_exist
 from nerv.training import BaseDataModule
 
 
-def main(params):
+def main(params,params_file):
     # build datamodule
     datasets = build_dataset(params)
     train_set, val_set = datasets[0], datasets[1]
@@ -29,9 +30,13 @@ def main(params):
     # build model
     model = build_model(params)
 
+    print('######### hey ')
     # create checkpoint dir
     exp_name = os.path.basename(args.params)
-    ckp_path = os.path.join('./checkpoint/', exp_name, 'models')
+    ckp_path = os.path.join(params.ckpt_path,'checkpoint', exp_name, 'models', params.wandb_run_name)
+    print('CKPT ', ckp_path)
+
+    exit()
     if args.local_rank == 0:
         mkdir_or_exist(os.path.dirname(ckp_path))
 
@@ -49,7 +54,7 @@ def main(params):
         # process after resuming training (i.e. drawing the same graph)
         # so we have to keep the same wandb id
         # TODO: modify this if you are not running on preemption clusters
-        preemption = True
+        preemption = False
         if SLURM_JOB_ID and preemption:
             logger_id = logger_name = f'{exp_name}-{SLURM_JOB_ID}'
         else:
@@ -57,10 +62,11 @@ def main(params):
             logger_id = None
         wandb.init(
             project=params.project,
-            name=logger_name,
+            name= params.wandb_run_name, #logger_name,
             id=logger_id,
             dir=ckp_path,
         )
+        wandb.save(params_file)
 
     method = build_method(
         model=model,
@@ -85,7 +91,11 @@ if __name__ == "__main__":
     parser.add_argument('--ddp', action='store_true', help='DDP training')
     parser.add_argument('--cudnn', action='store_true', help='cudnn benchmark')
     parser.add_argument('--local_rank', type=int, default=0)
+
     args = parser.parse_args()
+
+    if args.ddp:
+        args.local_rank = int(os.environ['LOCAL_RANK'])
 
     # import `build_dataset/model/method` function according to `args.task`
     print(f'INFO: training model in {args.task} task!')
@@ -95,12 +105,15 @@ if __name__ == "__main__":
     build_method = task.build_method
 
     # load the params
+    params_file = args.params
     if args.params.endswith('.py'):
         args.params = args.params[:-3]
     sys.path.append(os.path.dirname(args.params))
     params = importlib.import_module(os.path.basename(args.params))
     params = params.SlotFormerParams()
     params.ddp = args.ddp
+
+    print('LOCAL RANK 1 ', args.local_rank)
 
     if args.fp16:
         print('INFO: using FP16 training!')
@@ -110,4 +123,4 @@ if __name__ == "__main__":
         torch.backends.cudnn.benchmark = True
         print('INFO: using cudnn benchmark!')
 
-    main(params)
+    main(params,params_file)
