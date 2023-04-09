@@ -100,7 +100,7 @@ class BEVDataset(Dataset):
         # print('INDICES ',indices)
 
         # self.files = [self.files[i] for i in indices]
-        # self.files = self.files[:100] 
+        #self.files = self.files[:10] 
         #print('files ', self.files[:3])
 
         print(f"Detected {len(self.files)} images in split {self.split}")

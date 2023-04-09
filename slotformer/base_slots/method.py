@@ -109,8 +109,10 @@ class SAViMethod(SlotBaseMethod):
             ]
         # in PHYRE if the background is black, we scale the mask differently
         scale = 0. if self.params.get('reverse_color', False) else 1.
+
         # combine images in a way so we can display all outputs in one grid
         # output rescaled to be between 0 and 1
+        # TODO: is this normalization function really works? sigmoid (if recons are negative)
         out = to_rgb_from_tensor(
             torch.cat(
                 [
@@ -120,6 +122,19 @@ class SAViMethod(SlotBaseMethod):
                 ],
                 dim=1,
             ))  # [T, num_slots+2, 3, H, W]
+
+        out_nonorm = torch.cat(
+                                [
+                                    imgs.unsqueeze(1),  # original images
+                                    recon_combined.unsqueeze(1),  # reconstructions
+                                    recons * masks + (1. - masks) * scale,  # each slot
+                                ],
+                                dim=1,
+                            )
+        
+        #assert out.min == 0, 'min out is not 0'
+        #assert out.max == 1, 'max out is not 1'
+
         # stack the slot decomposition in all frames to a video
         save_video = torch.stack([
             vutils.make_grid(
@@ -128,7 +143,15 @@ class SAViMethod(SlotBaseMethod):
                 pad_value=1. - scale,
             ) for i in range(recons.shape[0])
         ])  # [T, 3, H, (num_slots+2)*W]
-        return save_video
+
+        save_video_nonorm = torch.stack([
+            vutils.make_grid(
+                out_nonorm[i].cpu(),
+                nrow=out.shape[1],
+                pad_value=1. - scale,
+            ) for i in range(recons.shape[0])
+        ])
+        return save_video, save_video_nonorm
 
     @torch.no_grad()
     def _sample_video(self, model):
@@ -136,7 +159,7 @@ class SAViMethod(SlotBaseMethod):
         model.eval()
         dst = self.val_loader.dataset
         sampled_idx = self._get_sample_idx(self.params.n_samples, dst)
-        results, labels = [], []
+        results, results_nonorm, masks_all, labels = [], [], [], []
         print('SAMPLED IDX ', sampled_idx)
         
         for i in sampled_idx:
@@ -147,14 +170,28 @@ class SAViMethod(SlotBaseMethod):
             in_dict = {'img': video[None]}
             out_dict = model(in_dict)
             out_dict = {k: v[0] for k, v in out_dict.items()}
-            #TODO: TO RGB
+    
             recon_combined, recons, masks = out_dict['post_recon_combined'], \
                 out_dict['post_recons'], out_dict['post_masks']
             imgs = video.type_as(recon_combined)
-            save_video = self._make_video_grid(imgs, recon_combined, recons,
+            save_video, save_video_nonorm = self._make_video_grid(imgs, recon_combined, recons,
                                                masks)
             results.append(save_video)
+            results_nonorm.append(save_video_nonorm)
+            masks_all.append(masks.argmax(1).cpu())
             labels.append(label)
+
+            '''slots_to_pixs = []
+            slots_lbl = []
+            for j in range(7):
+                slots_to_pixs.append(torch.count_nonzero(masks.argmax(1) == j).item())
+                slots_lbl.append('slot' + str(j))     
+
+            # TODO: purposes
+            data = [[slots_lbl, slots_to_pixs] for (slots_lbl, slots_to_pixs) in zip(slots_lbl, slots_to_pixs)]
+            table = wandb.Table(data=data, columns = ["slots", "#pixels"])
+            wandb.log({"sample"+str(i) : wandb.plot.bar(table, "slots", "#pixels",
+                                                    title="Slot Contribution to Pixels")})'''
 
         if all(lbl is not None for lbl in labels):
             caption = '\n'.join(
@@ -162,6 +199,10 @@ class SAViMethod(SlotBaseMethod):
         else:
             caption = None
         wandb.log({'val/video': self._convert_video(results, caption=caption)},
+                  step=self.it)
+        wandb.log({'val/video_nonorm': self._convert_video(results_nonorm, caption=caption)},
+                  step=self.it)
+        wandb.log({'val/masks(argmax)': self._convert_video(masks_all, caption=caption)},
                   step=self.it)
         torch.cuda.empty_cache()
 
