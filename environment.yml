@@ -144,7 +144,7 @@ dependencies:
     - notebook==6.5.1
     - notebook-shim==0.1.0
     - oauthlib==3.2.1
-    - open3d==0.15.2
+    #- open3d==0.15.2
     - opencv-python==4.6.0.66
     - packaging==21.3
     - pandas==1.5.0
@@ -165,7 +165,7 @@ dependencies:
     - pure-eval==0.2.2
     - pyasn1==0.4.8
     - pyasn1-modules==0.2.8
-    - pycocotools==2.0.5
+    #- pycocotools==2.0.5
     - pycparser==2.21
     - pydeprecate==0.3.2
     - pygments==2.13.0

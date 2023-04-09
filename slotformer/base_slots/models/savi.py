@@ -556,8 +556,9 @@ class StoSAVi(BaseModel):
             #                                                                 0,
             #                                                                 1,   # pedestrians
             #                                                                  ])[:,None,None].cuda())
+            loss = nn.BCEWithLogitsLoss()
 
-            loss_dict['post_recon_loss'] = F.mse_loss(post_recon_combined, img)
+            loss_dict['post_recon_loss'] = loss(post_recon_combined,img) #F.mse_loss(post_recon_combined, img)
             # TODO? They use MSE.
             
             #loss_dict['post_recon_loss'] = bce_loss(post_recon_combined, img)

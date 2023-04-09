@@ -53,9 +53,9 @@ class BEVDataset(Dataset):
         self.main_folders = sorted(os.listdir(self.data_path))
 
         if split=="train":
-            self.main_folders = self.main_folders[:-3]  #-10] # TODO: is it for rgb [2:-2]
+            self.main_folders = self.main_folders[:-9]  #-10] # TODO: is it for rgb [2:-2]
         elif split=="val":
-            self.main_folders = self.main_folders[-3:] #[-9:]  #[self.main_folders[-2]]
+            self.main_folders = self.main_folders[-9:] #[-9:]  #[self.main_folders[-2]]
         elif split=="test":
             self.main_folders = self.main_folders #[self.main_folders[0]] 
             self.npz_file_name = 'arr_0'

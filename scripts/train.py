@@ -7,6 +7,7 @@ import importlib
 import argparse
 import wandb
 
+
 import torch
 
 from nerv.utils import mkdir_or_exist
@@ -31,7 +32,7 @@ def main(params):
 
     # create checkpoint dir
     exp_name = os.path.basename(args.params)
-    ckp_path = os.path.join('./checkpoint/', exp_name, 'models')
+    ckp_path = os.path.join('./checkpoint/', exp_name, 'models/')
     if args.local_rank == 0:
         mkdir_or_exist(os.path.dirname(ckp_path))
 

@@ -29,6 +29,7 @@ DATETIME=$(date "+%Y-%m-%d_%H:%M:%S")
 LOG_FILE=$LOG_DIR/${DATETIME}.log
 CPUS_PER_TASK=$((GPUS * CPUS_PER_GPU))
 
+echo 'PARAMS '
 # set up log output folder
 mkdir -p $LOG_DIR
 
@@ -49,15 +50,16 @@ echo "#!/bin/bash
 #SBATCH --output=$LOG_FILE
 #SBATCH --error=$LOG_FILE
 #SBATCH --open-mode=append
-#SBATCH --partition=$PARTITION                       # self-explanatory, set to your preference (e.g. gpu or cpu on MaRS, p100, t4, or cpu on Vaughan)
+#SBATCH --partition=avg    #PARTITION                                                     # self-explanatory, set to your preference (e.g. gpu or cpu on MaRS, p100, t4, or cpu on Vaughan)   
 #SBATCH --cpus-per-task=$CPUS_PER_TASK               # self-explanatory, set to your preference
 #SBATCH --ntasks=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --mem-per-cpu=${MEM_PER_CPU}G                # self-explanatory, set to your preference
-#SBATCH --gres=gpu:$GPUS                             # NOTE: you need a GPU for CUDA support; self-explanatory, set to your preference 
+#SBATCH --gres=gpu:tesla_t4:$GPUS                             # NOTE: you need a GPU for CUDA support; self-explanatory, set to your preference 
 #SBATCH --nodes=1
-#SBATCH --qos=$QOS                                   # for 'high' and 'deadline' QoS, refer to https://support.vectorinstitute.ai/AboutVaughan2
-#SBATCH --time=$TIME                                 # running time limit, 0 as unlimited
+#SBATCH --account=avg
+#SBATCH --qos=avg  #QOS                                   # for 'high' and 'deadline' QoS, refer to https://support.vectorinstitute.ai/AboutVaughan2
+#SBATCH --time=15:0:0  #TIME                                 # running time limit, 0 as unlimited
 
 # log some necessary environment params
 echo \$SLURM_JOB_ID >> $LOG_FILE                      # log the job id

@@ -5,7 +5,7 @@ class SlotFormerParams(BaseParams):
     project = 'SlotFormer'
 
     # training settings
-    gpus = 2 #1 #2  # 2 GPUs should also be good
+    gpus = 1 #1 #2  # 2 GPUs should also be good
     max_epochs = 40  # ~80k steps
     save_interval = 1 #0.2  # save every 0.2 epoch
     eval_interval = 1  # evaluate every 2 epochs
@@ -21,7 +21,8 @@ class SlotFormerParams(BaseParams):
 
     # data settings
     dataset = 'bev' #'obj3d'
-    data_root = '/home/mbarin/Desktop/binary-vae/binary-data/' #'./data/OBJ3D'
+    data_root = '/kuacc/users/shamdan17/image/vae/iteration_one/' 
+    #'/home/mbarin/Desktop/binary-vae/binary-data/' #'./data/OBJ3D'
     n_sample_frames = 6  # train on video clips of 6 frames
     frame_offset = 1  # no offset
     video_len = 50  # take the first 50 frames of each video
@@ -41,7 +42,7 @@ class SlotFormerParams(BaseParams):
     
     # Slot Attention
     slot_dict = dict(
-        num_slots=7
+        num_slots=5
         ,  # at most 5 objects per scene
         slot_size=128,
         slot_mlp_size=256,
